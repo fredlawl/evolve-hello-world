@@ -31,6 +31,7 @@ int main() {
   struct organism *parent1, *parent2, *child;
   char *target = "Hello, World!";
   int generation, child_cnt;
+  bool all_evolved = true;
 
   population = __create_population(MAX_POPULATION, BUFF_LEN, target);
 
@@ -48,9 +49,16 @@ int main() {
 
   while (true) {
 
-    if (population[0]->fitness_score == 0) {
+    all_evolved = true;
+    for (int i = 0; i < MAX_POPULATION; i++) {
+      if (population[i]->fitness_score != 0) {
+        all_evolved = false;
+        break;
+      }
+    }
+
+    if (all_evolved) {
       printf("\nWinner! Generation %i\n", generation);
-      organism_print(population[0]);
       break;
     }
 
@@ -68,8 +76,12 @@ int main() {
       parent2 = population[i + 1];
 
       child = organism_create_child_with(parent1, parent2);
-      organism_mutate(child, __mutate);
       organism_calculate_fitness(child, target, __calculate_fitness);
+
+      if (child->fitness_score != 0) {
+        organism_mutate(child, __mutate);
+        organism_calculate_fitness(child, target, __calculate_fitness);
+      }
 
       if (organism_compare_to(child, population[(MAX_POPULATION - 1) - i]) < 0) {
         organism_destroy_organism(population[(MAX_POPULATION - 1) - i]);
