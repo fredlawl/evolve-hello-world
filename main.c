@@ -9,7 +9,8 @@
 #include "organism.h"
 
 #define BUFF_LEN 13
-#define MAX_POPULATION 20
+#define MAX_POPULATION 1000
+#define HALF_POPULATION MAX_POPULATION / 2
 
 static int __calculate_fitness(char *source, char *target);
 
@@ -29,7 +30,7 @@ int main() {
   struct organism **population;
   struct organism *parent1, *parent2, *child;
   char *target = "Hello, World!";
-  int generation;
+  int generation, child_cnt;
 
   population = __create_population(MAX_POPULATION, BUFF_LEN, target);
 
@@ -46,29 +47,45 @@ int main() {
   generation = 0;
 
   while (true) {
+
     if (population[0]->fitness_score == 0) {
       printf("\nWinner! Generation %i\n", generation);
       organism_print(population[0]);
       break;
     }
 
+    child_cnt = 0;
     generation++;
-    parent1 = __select_random_parent(population, MAX_POPULATION);
-    parent2 = __select_random_parent(population, MAX_POPULATION);
 
-    child = organism_create_child_with(parent1, parent2);
-    organism_mutate(child, __mutate);
-    organism_calculate_fitness(child, target, __calculate_fitness);
+    /*
+     * Since there's a sort happening, I'm doing some pretty serious elitism
+     * by selecting only the first quarter of the population to mate. This
+     * yields great results faster by only force feeding the population with
+     * very good children.
+     */
+    for (int i = 0; i < HALF_POPULATION / 2; i++) {
+      parent1 = population[i];
+      parent2 = population[i + 1];
 
-    if (organism_compare_to(child, population[MAX_POPULATION - 1]) < 0) {
-      organism_destroy_organism(population[MAX_POPULATION - 1]);
-      population[MAX_POPULATION - 1] = NULL;
-      population[MAX_POPULATION - 1] = child;
+      child = organism_create_child_with(parent1, parent2);
+      organism_mutate(child, __mutate);
+      organism_calculate_fitness(child, target, __calculate_fitness);
 
+      if (organism_compare_to(child, population[(MAX_POPULATION - 1) - i]) < 0) {
+        organism_destroy_organism(population[(MAX_POPULATION - 1) - i]);
+        population[(MAX_POPULATION - 1) - i] = NULL;
+        population[(MAX_POPULATION - 1) - i] = child;
+
+        child_cnt++;
+      } else {
+        organism_destroy_organism(child);
+      }
+    }
+
+    // Only sort if children were added this generation
+    if (child_cnt > 0) {
       qsort(population, MAX_POPULATION, sizeof(struct organism *),
             __sort_compare);
-    } else {
-      organism_destroy_organism(child);
     }
 
 #ifdef DEBUG
